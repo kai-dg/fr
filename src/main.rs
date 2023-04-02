@@ -6,6 +6,8 @@ use std::process;
 mod helpers;
 
 fn main() {
+    helpers::ensure_ripgrep();
+
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
         let base_command = args[0].clone();
