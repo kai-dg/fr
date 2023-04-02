@@ -1,26 +1,9 @@
+use colorize::AnsiColor;
 use dialoguer::console::Term;
 use dialoguer::MultiSelect;
-use std::path::PathBuf;
-use std::process::Command;
-use std::{env, fs};
-
-fn get_all_files(to_replace: String) -> Vec<String> {
-    let arguments = vec![to_replace.to_owned(), "--files-with-matches".to_owned()];
-    let output = Command::new("rg")
-        .args(arguments)
-        .output()
-        .expect("ERROR: failed to execute process");
-    let output_string = String::from_utf8_lossy(&output.stdout);
-    let filenames = output_string.trim().split('\n');
-    return filenames.map(str::to_string).collect();
-}
-
-fn replace_in_file(file: String, to_replace: String, replace_with: String) {
-    let path = PathBuf::from(file);
-    let contents = fs::read_to_string(&path).expect("ERROR: failed to read file.");
-    let new_contents = contents.replace(&to_replace, &replace_with);
-    fs::write(&path, new_contents).expect("ERROR: failed to write file");
-}
+use std::env;
+use std::process;
+mod helpers;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -28,10 +11,19 @@ fn main() {
         let base_command = args[0].clone();
         eprintln!("Usage: {base_command} <command> [args...]")
     }
-    let to_replace = args[1].clone();
-    let replace_with = args[2].clone();
+    let ref to_replace = args[1];
+    let ref replace_with = args[2];
 
-    let all_files = get_all_files(to_replace.clone());
+    let all_files = helpers::get_all_files(to_replace.to_string());
+
+    if all_files.len() == 1 && all_files[0].is_empty() == true {
+        println!(
+            "{} {}",
+            "No files found with the word".yellow(),
+            to_replace.to_string().black().yellowb()
+        );
+        process::exit(0);
+    }
 
     let selections = MultiSelect::new()
         .with_prompt("Select files")
@@ -41,16 +33,21 @@ fn main() {
 
     match selections {
         Some(indices) => {
-            println!("You selected:");
+            println!(
+                "You replaced {} with {} in files:",
+                to_replace.to_string().blue(),
+                replace_with.to_string().blue()
+            );
             for index in indices {
-                replace_in_file(
-                    all_files[index].clone(),
-                    to_replace.clone(),
-                    replace_with.clone(),
+                helpers::replace_in_file(
+                    all_files[index].to_string(),
+                    to_replace.to_string(),
+                    replace_with.to_string(),
                 );
-                println!("{}", all_files[index]);
+                println!("{}", all_files[index].to_string().green());
             }
         }
         None => println!("No items selected"),
     }
+    process::exit(0);
 }
